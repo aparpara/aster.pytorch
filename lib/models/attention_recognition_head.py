@@ -108,7 +108,7 @@ class AttentionRecognitionHead(nn.Module):
       sequence_scores = scores.view(batch_size * beam_width, 1)
 
       # Update fields for next timestep
-      predecessors = (candidates / self.num_classes + pos_index.expand_as(candidates)).view(batch_size * beam_width, 1)
+      predecessors = (candidates / self.num_classes + pos_index.expand_as(candidates)).view(batch_size * beam_width, 1).long()
       state = state.index_select(1, predecessors.squeeze())
 
       # Update sequence socres and erase scores for <eos> symbol so that they aren't expanded
@@ -238,7 +238,7 @@ class DecoderUnit(nn.Module):
     self.emdDim = attDim
 
     self.attention_unit = AttentionUnit(sDim, xDim, attDim)
-    self.tgt_embedding = nn.Embedding(yDim+1, self.emdDim) # the last is used for <BOS> 
+    self.tgt_embedding = nn.Embedding(yDim+1, self.emdDim) # the last is used for <BOS>
     self.gru = nn.GRU(input_size=xDim+self.emdDim, hidden_size=sDim, batch_first=True)
     self.fc = nn.Linear(sDim, yDim)
 
