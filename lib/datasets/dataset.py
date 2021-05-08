@@ -1,17 +1,7 @@
-from __future__ import absolute_import
-
-# import sys
-# sys.path.append('./')
-
 import os
-# import moxing as mox
-
-import pickle
-from tqdm import tqdm
 from PIL import Image, ImageFile
 import numpy as np
 import random
-import cv2
 import lmdb
 import sys
 import six
@@ -85,8 +75,6 @@ class LmdbDataset(data.Dataset):
     buf.seek(0)
     try:
       img = Image.open(buf).convert('RGB')
-      # img = Image.open(buf).convert('L')
-      # img = img.convert('RGB')
     except IOError:
       print('Corrupted image for %d' % index)
       return self[index + 1]
