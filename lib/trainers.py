@@ -36,7 +36,7 @@ class BaseTrainer(object):
 
     self.device = torch.device("cuda" if use_cuda else "cpu")
 
-  def train(self, epoch, data_loader, optimizer, current_lr=0.0, 
+  def train(self, epoch, data_loader, optimizer, current_lr=0.0,
             print_freq=100, train_tfLogger=None, is_debug=False,
             evaluator=None, test_loader=None, eval_tfLogger=None,
             test_dataset=None, test_freq=1000):
@@ -130,35 +130,32 @@ class BaseTrainer(object):
           # for tag, images in info.items():
           #   train_tfLogger.image_summary(tag, images, step)
 
-      #====== evaluation ======#
-      if self.iters % test_freq == 0:
-        # only symmetry branch
-        if 'loss_rec' not in output_dict['losses']:
-          is_best = True
-          # self.best_res is alwarys equal to 1.0 
-          self.best_res = evaluator.evaluate(test_loader, step=self.iters, tfLogger=eval_tfLogger, dataset=test_dataset)
-        else:
-          res = evaluator.evaluate(test_loader, step=self.iters, tfLogger=eval_tfLogger, dataset=test_dataset)
+    #====== evaluation ======#
+    # only symmetry branch
+    if 'loss_rec' not in output_dict['losses']:
+      is_best = True
+      # self.best_res is alwarys equal to 1.0
+      self.best_res = evaluator.evaluate(test_loader, step=self.iters, tfLogger=eval_tfLogger, dataset=test_dataset)
+    else:
+      res = evaluator.evaluate(test_loader, step=self.iters, tfLogger=eval_tfLogger, dataset=test_dataset)
 
-          if self.metric == 'accuracy':
-            is_best = res > self.best_res
-            self.best_res = max(res, self.best_res)
-          elif self.metric == 'editdistance':
-            is_best = res < self.best_res
-            self.best_res = min(res, self.best_res)
-          else:
-            raise ValueError("Unsupported evaluation metric:", self.metric)
+      if self.metric == 'accuracy':
+        is_best = res > self.best_res
+        self.best_res = max(res, self.best_res)
+      elif self.metric == 'editdistance':
+        is_best = res < self.best_res
+        self.best_res = min(res, self.best_res)
+      else:
+        raise ValueError("Unsupported evaluation metric:", self.metric)
 
-          print('\n * Finished iters {:3d}  accuracy: {:5.1%}  best: {:5.1%}{}\n'.
-            format(self.iters, res, self.best_res, ' *' if is_best else ''))
+      print('\n * Finished iters {:3d}  accuracy: {:5.1%}  best: {:5.1%}{}\n'.
+        format(self.iters, res, self.best_res, ' *' if is_best else ''))
 
-        # if epoch < 1:
-        #   continue
-        save_checkpoint({
-          'state_dict': self.model.module.state_dict(),
-          'iters': self.iters,
-          'best_res': self.best_res,
-        }, is_best, fpath=osp.join(self.logs_dir, 'checkpoint.pth.tar'))
+    save_checkpoint({
+      'state_dict': self.model.module.state_dict(),
+      'iters': self.iters,
+      'best_res': self.best_res,
+    }, is_best, fpath=osp.join(self.logs_dir, 'checkpoint.pth.tar'))
 
 
     # collect garbage (not work)
