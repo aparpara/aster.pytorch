@@ -11,6 +11,9 @@ from torch.utils import data
 from torch.utils.data import sampler
 from torchvision import transforms
 
+if __name__ == "__main__":
+  sys.path.insert(0, '.')
+
 from lib.utils.labelmaps import get_vocabulary, labels2strs
 from lib.utils import to_numpy
 
@@ -36,18 +39,16 @@ class LmdbDataset(data.Dataset):
         mox.file.copy_parallel(root, data_cache_url)
       else:
         raise ValueError("%s not exists!" % root)
-      
-      self.env = lmdb.open(data_cache_url, max_readers=32, readonly=True)
+
+      self.lmdb_dir = data_cache_url
     else:
-      self.env = lmdb.open(root, max_readers=32, readonly=True)
+      self.lmdb_dir = root
 
-    assert self.env is not None, "cannot create lmdb from %s" % root
-    self.txn = self.env.begin()
-
+    txn = self.__open_lmdb()
     self.voc_type = voc_type
     self.transform = transform
     self.max_len = max_len
-    self.nSamples = int(self.txn.get(b"num-samples"))
+    self.nSamples = int(txn.get(b"num-samples"))
     self.nSamples = min(self.nSamples, num_samples)
 
     assert voc_type in ['LOWERCASE', 'ALLCASES', 'ALLCASES_SYMBOLS']
@@ -61,10 +62,18 @@ class LmdbDataset(data.Dataset):
     self.rec_num_classes = len(self.voc)
     self.lowercase = (voc_type == 'LOWERCASE')
 
+  def __open_lmdb(self):
+    env = lmdb.open(self.lmdb_dir, max_readers=32, readonly=True, create=False)
+    assert env is not None, "cannot create lmdb from %s" % self.lmdb_dir
+    return env.begin()
+
   def __len__(self):
     return self.nSamples
 
   def __getitem__(self, index):
+    if not hasattr(self, 'txn'):
+      self.txn = self.__open_lmdb()
+
     assert index <= len(self), 'index range error'
     index += 1
     img_key = b'image-%09d' % index
@@ -109,7 +118,7 @@ class LmdbDataset(data.Dataset):
 
     if self.transform is not None:
       img = self.transform(img)
-    return img, label, label_len
+      return img, label, label_len
 
 
 class ResizeNormalize(object):
@@ -206,12 +215,12 @@ def test():
     for id, (image, label, label_len) in enumerate(zip(images, labels, label_lens)):
       image = Image.fromarray(np.uint8(image))
       # image = toPILImage(image)
-      image.show()
-      print(image.size)
+        image.show()
+        print(image.size)
       print(labels2strs(label, train_dataset.id2char, train_dataset.char2id))
       print(label_len.item())
-      input()
+        input()
 
 
 if __name__ == "__main__":
-    test()
+  test()
