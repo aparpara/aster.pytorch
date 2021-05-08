@@ -238,3 +238,5 @@ logs
 *.jpeg
 viz
 vis
+
+*.pth.tar
