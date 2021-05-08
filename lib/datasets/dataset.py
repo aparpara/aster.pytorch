@@ -102,9 +102,11 @@ class LmdbDataset(data.Dataset):
     for char in word:
       if char in self.char2id:
         label_list.append(self.char2id[char])
+      elif char == ' ':
+        print(f'Ignoring a space encountered in {index}.')
       else:
         ## add the unknown token
-        print('{0} is out of vocabulary.'.format(char))
+        print(f'"{char}" is out of vocabulary for {index}.')
         label_list.append(self.char2id[self.UNKNOWN])
     ## add a stop token
     label_list = label_list + [self.char2id[self.EOS]]
