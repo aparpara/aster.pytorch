@@ -26,6 +26,13 @@ global_args = get_args(sys.argv[1:])
 if global_args.run_on_remote:
   import moxing as mox
 
+CHAR_SUBSTITUTION_TABLE = {
+  ' ': '',
+  '\u00b4': "'",
+  '\u00c9': 'E',
+  '\u00e9': 'e'
+}
+
 class LmdbDataset(data.Dataset):
   def __init__(self, root, voc_type, max_len, num_samples, transform=None, with_name=False):
     super(LmdbDataset, self).__init__()
@@ -101,13 +108,15 @@ class LmdbDataset(data.Dataset):
     for char in word:
       if char in self.char2id:
         label_list.append(self.char2id[char])
-      elif char == ' ':
-        if self.with_name:
-          print(f'Ignoring a space encountered in {index}.')
       else:
-        ## add the unknown token
-        print(f'"{char}" is out of vocabulary for {index}.')
-        label_list.append(self.char2id[self.UNKNOWN])
+        sub_char = CHAR_SUBSTITUTION_TABLE.get(char)
+        if sub_char is not None:
+          if self.with_name:
+            print(f'Substituting "\\u{ord(char):04x}" with "{sub_char}".')
+        else:
+          ## add the unknown token
+          print(f'Character "\\u{ord(char):04x}" is out of vocabulary for {index}.')
+          label_list.append(self.char2id[self.UNKNOWN])
     ## add a stop token
     label_list = label_list + [self.char2id[self.EOS]]
     assert len(label_list) <= self.max_len
