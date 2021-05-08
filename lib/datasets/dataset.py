@@ -102,7 +102,8 @@ class LmdbDataset(data.Dataset):
       if char in self.char2id:
         label_list.append(self.char2id[char])
       elif char == ' ':
-        print(f'Ignoring a space encountered in {index}.')
+        if self.with_name:
+          print(f'Ignoring a space encountered in {index}.')
       else:
         ## add the unknown token
         print(f'"{char}" is out of vocabulary for {index}.')
