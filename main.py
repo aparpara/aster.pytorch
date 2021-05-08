@@ -189,7 +189,9 @@ def main(args):
   param_groups = model.parameters()
   param_groups = filter(lambda p: p.requires_grad, param_groups)
   optimizer = optim.Adadelta(param_groups, lr=args.lr, weight_decay=args.weight_decay)
-  scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[4,5], gamma=0.1)
+
+  scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=np.arange(7)*args.epochs//7,
+                                             gamma=0.5)
 
   # Trainer
   loss_weights = {}
@@ -203,7 +205,6 @@ def main(args):
   # Start training
   evaluator.evaluate(test_loader, step=0, tfLogger=eval_tfLogger, dataset=test_dataset)
   for epoch in range(start_epoch, args.epochs):
-    scheduler.step(epoch)
     current_lr = optimizer.param_groups[0]['lr']
     trainer.train(epoch, train_loader, optimizer, current_lr,
                   print_freq=args.print_freq,
@@ -213,6 +214,7 @@ def main(args):
                   test_loader=test_loader,
                   eval_tfLogger=eval_tfLogger,
                   test_dataset=test_dataset)
+    scheduler.step()
 
   # Final test
   print('Test with best model:')
