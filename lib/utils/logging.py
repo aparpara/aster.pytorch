@@ -3,7 +3,11 @@ import os
 import sys
 import numpy as np
 import tensorflow as tf
-import scipy.misc 
+if tf.version.VERSION.startswith('2.'):
+  import tensorflow.compat.v1 as tf
+  tf.disable_eager_execution()
+
+import scipy.misc
 try:
   from StringIO import StringIO  # Python 2.7
 except ImportError:
@@ -96,7 +100,7 @@ class TFLogger(object):
     summary = tf.Summary(value=img_summaries)
     self.writer.add_summary(summary, step)
     self.writer.flush()
-        
+
   def histo_summary(self, tag, values, step, bins=1000):
     """Log a histogram of the tensor of values."""
 
