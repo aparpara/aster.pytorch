@@ -53,8 +53,8 @@ class BaseEvaluator(object):
         loss = loss.mean(dim=0, keepdim=True)
         total_loss_batch += loss.item() * batch_size
 
-      images.append(input_dict['images'])
-      targets.append(input_dict['rec_targets'])
+      images.append(input_dict['images'].to('cpu'))
+      targets.append(input_dict['rec_targets'].to('cpu'))
       losses.append(total_loss_batch)
       if global_args.evaluate_with_lexicon:
         file_names += input_dict['file_name']
