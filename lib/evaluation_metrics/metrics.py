@@ -115,7 +115,7 @@ def Accuracy_with_lexicon(output, target, dataset=None, file_names=None):
     refined_pred_list = [_lexicon_search(dataset.lexiconsfull[file_name], pred) for file_name, pred in zip(file_names, pred_list)]
     acc_list = [(pred == targ) for pred, targ in zip(refined_pred_list, targ_list)]
     accuracy = 1.0 * sum(acc_list) / len(acc_list)
-    accuracys.append(accuracy)    
+    accuracys.append(accuracy)
 
   return accuracys
 
@@ -169,9 +169,11 @@ def EditDistance_with_lexicon(output, target, dataset=None, file_names=None):
 
 def RecPostProcess(output, target, score, dataset=None):
   pred_list, targ_list = get_str_list(output, target, dataset)
+  if score is None:
+    return pred_list, targ_list, None
+
   max_len_labels = output.size(1)
   score_list = []
-
   score = to_numpy(score)
   for i, pred in enumerate(pred_list):
     len_pred = len(pred) + 1 # eos should be included

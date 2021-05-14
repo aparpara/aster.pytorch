@@ -38,7 +38,11 @@ class BaseEvaluator(object):
     # forward the network
     images, outputs, targets, losses = [], {}, [], []
     file_names = []
+    num_samples = 0
 
+    # Keep them in memory only if needed
+    need_images = vis_dir is not None
+    
     end = time.time()
     for i, inputs in enumerate(data_loader):
       data_time.update(time.time() - end)
@@ -47,14 +51,16 @@ class BaseEvaluator(object):
       output_dict = self._forward(input_dict)
 
       batch_size = input_dict['images'].size(0)
+      num_samples += batch_size
 
       total_loss_batch = 0.
       for k, loss in output_dict['losses'].items():
         loss = loss.mean(dim=0, keepdim=True)
         total_loss_batch += loss.item() * batch_size
 
-      images.append(input_dict['images'].to('cpu'))
-      targets.append(input_dict['rec_targets'].to('cpu'))
+      if need_images:
+        images.append(input_dict['images'].cpu())
+      targets.append(input_dict['rec_targets'].cpu())
       losses.append(total_loss_batch)
       if global_args.evaluate_with_lexicon:
         file_names += input_dict['file_name']
@@ -77,11 +83,8 @@ class BaseEvaluator(object):
                       batch_time.val, batch_time.avg,
                       data_time.val, data_time.avg))
 
-    if not global_args.keep_ratio:
+    if need_images and not global_args.keep_ratio:
       images = torch.cat(images)
-      num_samples = images.size(0)
-    else:
-      num_samples = sum([subimages.size(0) for subimages in images])
     targets = torch.cat(targets)
     losses = np.sum(losses) / (1.0 * num_samples)
     for k, v in outputs.items():
@@ -100,7 +103,7 @@ class BaseEvaluator(object):
       else:
         eval_res = metrics_factory[self.metric](outputs['pred_rec'], targets, dataset)
         print('lexicon0: {0}: {1:.3f}'.format(self.metric, eval_res))
-      pred_list, targ_list, score_list = RecPostProcess(outputs['pred_rec'], targets, outputs['pred_rec_score'], dataset)
+      pred_list, targ_list, score_list = RecPostProcess(outputs['pred_rec'], targets, outputs.get('pred_rec_score'), dataset)
 
       if tfLogger is not None:
         # (1) Log the scalar values
@@ -147,7 +150,6 @@ class Evaluator(BaseEvaluator):
     return input_dict
 
   def _forward(self, input_dict):
-    self.model.eval()
     with torch.no_grad():
       output_dict = self.model(input_dict)
     return output_dict
