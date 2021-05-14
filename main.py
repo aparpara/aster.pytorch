@@ -190,8 +190,7 @@ def main(args):
   param_groups = filter(lambda p: p.requires_grad, param_groups)
   optimizer = optim.Adadelta(param_groups, lr=args.lr, weight_decay=args.weight_decay)
 
-  scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=np.arange(7)*args.epochs//7,
-                                             gamma=0.5)
+  scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
 
   # Trainer
   loss_weights = {}
