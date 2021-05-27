@@ -135,7 +135,7 @@ class LmdbDataset(data.Dataset):
     label_len = len(label_list)
 
     if self.transform is not None:
-      img = self.transform(img)
+      img = Image.fromarray(self.transform(image=np.array(img))["image"])
 
     if self.with_name:
       return img, label, label_len, self.txn.get(b'name-%09d' % index)

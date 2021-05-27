@@ -2,10 +2,10 @@ from __future__ import absolute_import
 import sys
 sys.path.append('./')
 
-import argparse
 import os
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
+import albumentations as albu
 import os.path as osp
 import numpy as np
 import math
@@ -14,76 +14,42 @@ import time
 import torch
 from torch import nn, optim
 from torch.backends import cudnn
-from torch.utils.data import DataLoader, SubsetRandomSampler
+from torch.utils.data import DataLoader
 
 from config import get_args
-from lib import datasets, evaluation_metrics, models
 from lib.models.model_builder import ModelBuilder
 from lib.datasets.dataset import LmdbDataset, AlignCollate
 from lib.datasets.concatdataset import ConcatDataset
-from lib.loss import SequenceCrossEntropyLoss
 from lib.trainers import Trainer
 from lib.evaluators import Evaluator
 from lib.utils.logging import Logger, TFLogger
-from lib.utils.serialization import load_checkpoint, save_checkpoint
+from lib.utils.serialization import load_checkpoint
 from lib.utils.osutils import make_symlink_if_not_exists
 
 global_args = get_args(sys.argv[1:])
 
 
-def get_data(data_dir, voc_type, max_len, num_samples, height, width, batch_size, workers, is_train, keep_ratio):
+def get_data(data_dir, voc_type, max_len, num_samples, height, width, batch_size, workers,
+             is_train, keep_ratio, augment=False):
+  transform = albu.Compose(
+  [
+    albu.RGBShift(p=0.5),
+    albu.RandomBrightnessContrast(p=0.5),
+    albu.OpticalDistortion(distort_limit=0.1, shift_limit=0.1, p=0.5)
+  ]) if augment else None
+
   if isinstance(data_dir, list):
-    dataset_list = []
-    for data_dir_ in data_dir:
-      dataset_list.append(LmdbDataset(data_dir_, voc_type, max_len, num_samples))
-    dataset = ConcatDataset(dataset_list)
+    dataset = ConcatDataset([LmdbDataset(data_dir_, voc_type, max_len, num_samples, transform)
+                             for data_dir_ in data_dir])
   else:
-    dataset = LmdbDataset(data_dir, voc_type, max_len, num_samples)
+    dataset = LmdbDataset(data_dir, voc_type, max_len, num_samples, transform)
   print('total image: ', len(dataset))
 
-  if is_train:
-    data_loader = DataLoader(dataset, batch_size=batch_size, num_workers=workers,
-      shuffle=True, pin_memory=True, drop_last=True,
-      collate_fn=AlignCollate(imgH=height, imgW=width, keep_ratio=keep_ratio))
-  else:
-    data_loader = DataLoader(dataset, batch_size=batch_size, num_workers=workers,
-      shuffle=False, pin_memory=True, drop_last=False,
-      collate_fn=AlignCollate(imgH=height, imgW=width, keep_ratio=keep_ratio))
+  data_loader = DataLoader(dataset, batch_size=batch_size, num_workers=workers,
+    shuffle=is_train, pin_memory=True, drop_last=is_train,
+    collate_fn=AlignCollate(imgH=height, imgW=width, keep_ratio=keep_ratio))
 
   return dataset, data_loader
-
-
-def get_dataset(data_dir, voc_type, max_len, num_samples):
-  if isinstance(data_dir, list):
-    dataset_list = []
-    for data_dir_ in data_dir:
-      dataset_list.append(LmdbDataset(data_dir_, voc_type, max_len, num_samples))
-    dataset = ConcatDataset(dataset_list)
-  else:
-    dataset = LmdbDataset(data_dir, voc_type, max_len, num_samples)
-  print('total image: ', len(dataset))
-  return dataset
-
-
-def get_dataloader(synthetic_dataset, real_dataset, height, width, batch_size, workers,
-                   is_train, keep_ratio):
-  num_synthetic_dataset = len(synthetic_dataset)
-  num_real_dataset = len(real_dataset)
-
-  synthetic_indices = list(np.random.permutation(num_synthetic_dataset))
-  synthetic_indices = synthetic_indices[num_real_dataset:]
-  real_indices = list(np.random.permutation(num_real_dataset) + num_synthetic_dataset)
-  concated_indices = synthetic_indices + real_indices
-  assert len(concated_indices) == num_synthetic_dataset
-
-  sampler = SubsetRandomSampler(concated_indices)
-  concated_dataset = ConcatDataset([synthetic_dataset, real_dataset])
-  print('total image: ', len(concated_dataset))
-
-  data_loader = DataLoader(concated_dataset, batch_size=batch_size, num_workers=workers,
-    shuffle=False, pin_memory=True, drop_last=True, sampler=sampler,
-    collate_fn=AlignCollate(imgH=height, imgW=width, keep_ratio=keep_ratio))
-  return concated_dataset, data_loader
 
 def main(args):
   np.random.seed(args.seed)
@@ -125,7 +91,7 @@ def main(args):
   if not args.evaluate:
     train_dataset, train_loader = \
       get_data(args.synthetic_train_data_dir, args.voc_type, args.max_len, args.num_train,
-               args.height, args.width, args.batch_size, args.workers, True, args.keep_ratio)
+               args.height, args.width, args.batch_size, args.workers, True, args.keep_ratio, args.aug)
   test_dataset, test_loader = \
     get_data(args.test_data_dir, args.voc_type, args.max_len, args.num_test,
              args.height, args.width, args.batch_size, args.workers, False, args.keep_ratio)
