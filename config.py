@@ -71,6 +71,7 @@ parser.add_argument('--momentum', type=float, default=0.9)
 parser.add_argument('--weight_decay', type=float, default=0.0) # the model maybe under-fitting, 0.0 gives much better results.
 parser.add_argument('--grad_clip', type=float, default=1.0)
 parser.add_argument('--loss_weights', nargs='+', type=float, default=[1,1,1])
+parser.add_argument('--lr_gamma', type=float, default=0.99)
 # training configs
 parser.add_argument('--resume', type=str, default='', metavar='PATH')
 parser.add_argument('--evaluate', action='store_true',
