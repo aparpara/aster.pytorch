@@ -70,6 +70,7 @@ class LmdbDataset(data.Dataset):
     self.lowercase = (voc_type == 'LOWERCASE')
 
     self.with_name = with_name
+    self.some_labels_truncated = False
 
   def __open_lmdb(self):
     env = lmdb.open(self.lmdb_dir, max_readers=32, readonly=True, create=False)
@@ -106,6 +107,11 @@ class LmdbDataset(data.Dataset):
     label = np.full((self.max_len,), self.char2id[self.PADDING], dtype=np.int)
     label_list = []
     for char in word:
+      if len(label_list) + 1 == self.max_len:
+        if not self.some_labels_truncated:
+          self.some_labels_truncated = True # Print it only once
+          print(f'Some labels were truncated to {self.max_len} including the stop symbol.')
+        break
       if char in self.char2id:
         label_list.append(self.char2id[char])
       else:
